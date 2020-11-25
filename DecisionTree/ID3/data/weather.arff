@@ -1,5 +1,4 @@
-
-@relation weather.symbolic
+@relation weather
 
 @attribute outlook {sunny, overcast, rainy}
 @attribute temperature {hot, mild, cool}

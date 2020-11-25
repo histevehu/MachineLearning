@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<root>
+  <DecisionTree value="null">
+    <att1 value="A">
+      <att2 value="LtOrEt:82.0">c1</att2>
+      <att2 value="Gt:82.0">c2</att2>
+    </att1>
+    <att1 value="B">c1</att1>
+    <att1 value="C">
+      <att3 value="true">c2</att3>
+      <att3 value="false">c1</att3>
+    </att1>
+  </DecisionTree>
+</root>

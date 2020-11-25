@@ -1,0 +1,22 @@
+@relation work
+
+@attribute att1 {A,B,C}
+@attribute att2 numeric
+@attribute att3 {true,false}
+@attribute class {c1,c2}
+
+@data
+A,70,true,c1
+A,90,true,c2
+A,85,false,c2
+A,95,false,c2
+A,70,false,c1
+B,90,true,c1
+B,78,false,c1
+B,65,true,c1
+B,75,false,c1
+C,80,true,c2
+C,70,true,c2
+C,80,false,c1
+C,80,false,c1
+C,96,false,c1

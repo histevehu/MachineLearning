@@ -12,15 +12,20 @@ import java.util.regex.Pattern;
 public class ID3
 {
     //attribute name
-    private ArrayList<String> attribute = new ArrayList<String>(); // 存储属性的名称
+    private ArrayList<String> attribute = new ArrayList<String>();
     //the values of each attribute
     private ArrayList<ArrayList<String>> attributeValue = new ArrayList<ArrayList<String>>();
     //original data
-    private ArrayList<String[]> data = new ArrayList<String[]>();
+    private ArrayList<Object[]> data = new ArrayList<>();
     //index of the target attribute, which is the attribute of the final decision
     int tgtAttribute;
     //regular expression used to match the header "@attribute" part of the data file
-    public static final String patternString = "@attribute(.*)[{](.*?)[}]";
+    public static final String patternString_discrete = "@attribute(.*)[{](.*?)[}]";
+    public static final String patternString_continuous = "@attribute(.*)[ ](.*)";
+    //indicate if data includes continuous data
+    boolean hasConData = false;
+    //thresholds of continuous data map<index of attribute,threshold>
+    Map<Integer, Double> thresholdMap = new HashMap<>();
     //output xml file
     Document xmldoc;
     //root node of the output xml file, which is also the node of the decision tree
@@ -47,7 +52,8 @@ public class ID3
             id3.readARFF(file);
         } catch (Exception e)
         {
-            System.err.println("<!>Data file (" + fileName + ".arff" + ") read failed.");
+            //System.err.println("<!>Data file (" + fileName + ".arff" + ") read failed.");
+            e.printStackTrace();
             System.exit(-1);
         }
         //input target attribute
@@ -70,7 +76,7 @@ public class ID3
         //build decision tree
         id3.buildDT("DecisionTree", "null", dataNumList, attList);
         //output decision tree to xml file
-        id3.writeXML("DecisionTree-" + fileName + ".xml");
+        id3.writeXML(fileName + "-dt.xml");
         return;
     }
 
@@ -82,31 +88,66 @@ public class ID3
             FileReader fr = new FileReader(file);
             BufferedReader br = new BufferedReader(fr);
             String line;
-            Pattern pattern = Pattern.compile(patternString);
+            Scanner scanner = new Scanner(System.in);
+            //initialize two patterns for discrete and continuous data
+            Pattern pattern_dis = Pattern.compile(patternString_discrete);
+            Pattern pattern_con = Pattern.compile(patternString_continuous);
             while ((line = br.readLine()) != null)
             {
-                Matcher matcher = pattern.matcher(line);
-                //if matched(In @attribute part of file), group(1): attribute name, group(2): attribute values
-                if (matcher.find())
+                //initialize two matchers for discrete and continuous data
+                Matcher matcher_dis = pattern_dis.matcher(line);
+                Matcher matcher_con = pattern_con.matcher(line);
+                //if matched discrete attribute head, group(1): attribute name, group(2): attribute values
+                if (matcher_dis.find())
                 {
-                    attribute.add(matcher.group(1).trim());
-                    String[] values = matcher.group(2).split(",");
+                    attribute.add(matcher_dis.group(1).trim());
+                    String[] values = matcher_dis.group(2).split(",");
                     ArrayList<String> al = new ArrayList<>(values.length);
                     for (String value : values)
                         al.add(value.trim());
+                    //attributevalue element type:string[]
                     attributeValue.add(al);
+                } else if (matcher_con.find())
+                {
+                    if (matcher_con.group(2).equals("numeric"))
+                    {
+                        attribute.add(matcher_con.group(1).trim());
+                        //attributevalue element type:null
+                        //value null will be used later to distinguish whether the attribute corresponding to the attribute value is continuous(null) or discrete(string[]).
+                        attributeValue.add(null);
+                        hasConData = true;
+                        //input threshold of current continuous attribute
+                        //Only supports one threshold temporarily, that is, two categories
+                        System.out.print(">>>Input threshold of data \"" + matcher_con.group(1) + "\"\n  >");
+                        thresholdMap.put((attribute.size() - 1), Double.valueOf(scanner.next()));
+                    } else
+                    {
+                        System.err.println("<!>Data file includes unsupported type of data");
+                        System.exit(-1);
+                    }
                 }
                 //else check if in @data part of file
                 else if (line.startsWith("@data"))
                 {
                     while ((line = br.readLine()) != null)
                     {
-
                         if (line == "") //skip blank lines
                             continue;
                         //add data
-                        String[] row = line.split(",");
-                        data.add(row);
+                        if (hasConData)
+                        {
+                            String[] row = line.split(",");
+                            Object[] t_data = new Object[attributeValue.size()];
+                            for (int i = 0; i < attributeValue.size(); i++)
+                            {
+                                t_data[i] = (attributeValue.get(i) == null) ? Double.valueOf(row[i]) : row[i];
+                            }
+                            data.add(t_data);
+                        } else
+                        {
+                            String[] row = line.split(",");
+                            data.add(row);
+                        }
                     }
                 } else //skip blank lines
                 {
@@ -120,6 +161,7 @@ public class ID3
         }
     }
 
+    //check and set the index of target attribute to tgtAttribute
     public void setTgtAttribute(String name)
     {
         int n = attribute.indexOf(name);
@@ -155,10 +197,11 @@ public class ID3
     //if all target attributes in the data set are the same, it means that data all belong to the same category, then the data set is pure
     public boolean infoPure(ArrayList<Integer> subDataIndex)
     {
-        String value = data.get(subDataIndex.get(0))[tgtAttribute];
+        //Regardless of whether the category attribute value type of the current data set is string or number, convert it to a string for comparison
+        String value = (String) data.get((subDataIndex.get(0)))[tgtAttribute];
         for (int i = 1; i < subDataIndex.size(); i++)
         {
-            String next = data.get(subDataIndex.get(i))[tgtAttribute];
+            String next = (String) data.get(subDataIndex.get(i))[tgtAttribute];
             if (!value.equals(next))
                 return false;
         }
@@ -176,25 +219,47 @@ public class ID3
         int sum = subDataIndex.size();
         double entropy = 0.0;
         // info[][] for statistical records when traversing data later
-        // info[number of attribute value branches][target attributes corresponding to each attribute value branch]
-        int[][] info = new int[attributeValue.get(index).size()][];
+        // If the attribute corresponding to index is a discrete type: info[number of attribute value branches][target attribute number of each attribute value branch]
+        // If the attribute corresponding to index is a continuous type: info[2(only supports one threshold temporarily)][target attribute number of each attribute value branch]
+        // If attributeValue.get(index) != null then type of attribute(index) is discrete, or it's continuous
+        int[][] info = new int[(attributeValue.get(index) != null) ? attributeValue.get(index).size() : 2][];
         for (int i = 0; i < info.length; i++)
             info[i] = new int[attributeValue.get(tgtAttribute).size()];
         //Count[] store the number of data corresponding to each attribute value branch
-        int[] count = new int[attributeValue.get(index).size()];
+        int[] count = new int[(attributeValue.get(index) != null) ? attributeValue.get(index).size() : 2];
 
         //start to traverse data
-        for (int i = 0; i < sum; i++)
+        //discrete data
+        if (attributeValue.get(index) != null)
         {
-            //n is the index of the current data
-            int n = subDataIndex.get(i);
-            //Get the index of the attribute needed to calc entropy of current data
-            int t_data_att_index = attributeValue.get(index).indexOf(data.get(n)[index]);
-            //Get the index of the target attribute of the current data
-            int t_data_tgtAtt_index = attributeValue.get(tgtAttribute).indexOf(data.get(n)[tgtAttribute]);
-            count[t_data_att_index]++;
-            info[t_data_att_index][t_data_tgtAtt_index]++;
+            for (int i = 0; i < sum; i++)
+            {
+                //n is the index of the current data
+                int n = subDataIndex.get(i);
+                //Get the index of the attribute needed to calc entropy of current data
+                int t_data_att_index = attributeValue.get(index).indexOf(data.get(n)[index]);
+                //Get the index of the target attribute of the current data
+                int t_data_tgtAtt_index = attributeValue.get(tgtAttribute).indexOf(data.get(n)[tgtAttribute]);
+                count[t_data_att_index]++;
+                info[t_data_att_index][t_data_tgtAtt_index]++;
+            }
         }
+        //continuous data
+        else
+        {
+            for (int i = 0; i < sum; i++)
+            {
+                //n is the index of the current data
+                int n = subDataIndex.get(i);
+                //According to whether the value > threshold value to classify, value > threshold: category 1; value <= threshold: category 0
+                int t_data_att_index = Double.valueOf(data.get(n)[index].toString()) <= thresholdMap.get(index) ? 0 : 1;
+                //Get the index of the target attribute of the current data
+                int t_data_tgtAtt_index = attributeValue.get(tgtAttribute).indexOf(data.get(n)[tgtAttribute]);
+                count[t_data_att_index]++;
+                info[t_data_att_index][t_data_tgtAtt_index]++;
+            }
+        }
+
         //calc the sum of (the information entropy of each branch of the attribute * the proportion of the number of branch of the attribute to the total number of data of the attribute)
         for (int i = 0; i < info.length; i++)
         {
@@ -233,7 +298,7 @@ public class ID3
         //if it is, it means that the current node pointed to by ele is a leaf node, skip the subsequent calc and return directly
         if (infoPure(subDataIndex))
         {
-            ele.setText(data.get(subDataIndex.get(0))[tgtAttribute]);
+            ele.setText((String) data.get(subDataIndex.get(0))[tgtAttribute]);
             return;
         }
         //data isn't pure
@@ -262,23 +327,60 @@ public class ID3
         //Remove the attribute which was included in the decision tree this time from the list of remaining attributes
         attList.remove(Integer.valueOf(minIndex));
         //Add all attribute values of the current attribute to the ele node
-        ArrayList<String> attvalues = attributeValue.get(minIndex);
-        for (String val : attvalues)
+        //type of attribute with smallest entropy is continuous
+        if (attributeValue.get(minIndex) == null)
         {
-            ele.addElement(subNodeName).addAttribute("value", val);
-            //Find the data of attribute with the smallest information entropy according to the type and add it to al
-            //as a sub data set for recursively constructing decision branch of each attribute value branch
-            ArrayList<Integer> al = new ArrayList<Integer>();
-            for (int i = 0; i < subDataIndex.size(); i++)
+            for (int i = 0; i < 2; i++)
             {
-                if (data.get(subDataIndex.get(i))[minIndex].equals(val))
+                //Find the data which its attribute value <= or > threshold separately and add them to al
+                //as a sub data set for recursively constructing decision branch of each attribute value branch
+                ArrayList<Integer> al = new ArrayList<Integer>();
+                double val = thresholdMap.get(minIndex);
+                //first loop：find the data which its attribute value <= threshold
+                //second loop：find the data which its attribute value > threshold
+                String subNodeAtt = ((i == 0) ? "LtOrEt:" : "Gt:") + String.valueOf(val);
+                ele.addElement(subNodeName).addAttribute("value", subNodeAtt);
+                for (int j = 0; j < subDataIndex.size(); j++)
                 {
-                    al.add(subDataIndex.get(i));
+                    switch (i)
+                    {
+                        case 0:
+                            if ((double) data.get(subDataIndex.get(j))[minIndex] <= val)
+                                al.add(subDataIndex.get(j));
+                            break;
+                        case 1:
+                            if ((double) data.get(subDataIndex.get(j))[minIndex] > val)
+                                al.add(subDataIndex.get(j));
+                            break;
+                    }
                 }
+                //recursively constructing decision branches
+                buildDT(subNodeName, subNodeAtt, al, attList);
             }
-            //recursively constructing decision branches
-            buildDT(subNodeName, val, al, attList);
+
         }
+        //type of attribute with smallest entropy is discrete
+        else
+        {
+            ArrayList<String> attvalues = attributeValue.get(minIndex);
+            for (String val : attvalues)
+            {
+                //Find the data of attribute with the smallest information entropy according to the type and add it to al
+                //as a sub data set for recursively constructing decision branch of each attribute value branch
+                ArrayList<Integer> al = new ArrayList<Integer>();
+                ele.addElement(subNodeName).addAttribute("value", val);
+                for (int i = 0; i < subDataIndex.size(); i++)
+                {
+                    if (data.get(subDataIndex.get(i))[minIndex].equals(val))
+                    {
+                        al.add(subDataIndex.get(i));
+                    }
+                }
+                //recursively constructing decision branches
+                buildDT(subNodeName, val, al, attList);
+            }
+        }
+
     }
 
     //output decision tree to xml file
@@ -292,6 +394,7 @@ public class ID3
             FileWriter fw = new FileWriter(file);
             OutputFormat format = OutputFormat.createPrettyPrint(); // 美化格式
             XMLWriter output = new XMLWriter(fw, format);
+            output.setEscapeText(false);
             output.write(xmldoc);
             output.close();
             System.out.println(">>>The decision tree has been saved in " + filename);

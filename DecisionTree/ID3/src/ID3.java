@@ -44,18 +44,10 @@ public class ID3
         ID3 id3 = new ID3();
         Scanner scanner = new Scanner(System.in);
         //read .arff data file
-        System.out.print(">>>Data file name(*.arff format, in the same directory as the program):\n  >");
+        System.out.print(">>>Data file name(ONLY *.arff format, ONLY search in the same directory as the program):\n  >");
         String fileName = scanner.nextLine();
-        try
-        {
-            File file = new File((ID3.class.getResource(fileName + ".arff")).getPath());
-            id3.readARFF(file);
-        } catch (Exception e)
-        {
-            //System.err.println("<!>Data file (" + fileName + ".arff" + ") read failed.");
-            e.printStackTrace();
-            System.exit(-1);
-        }
+        File file = new File("./data/" + fileName + ".arff");
+        id3.readARFF(file);
         //input target attribute
         System.out.print(">>>Target attribute:\n  >");
         //check and set the index of target attribute to tgtAttribute
@@ -118,7 +110,7 @@ public class ID3
                         hasConData = true;
                         //input threshold of current continuous attribute
                         //Only supports one threshold temporarily, that is, two categories
-                        System.out.print(">>>Input threshold of data \"" + matcher_con.group(1) + "\"\n  >");
+                        System.out.print(">>>Input threshold of data \"" + matcher_con.group(1).trim() + "\"\n  >");
                         thresholdMap.put((attribute.size() - 1), Double.valueOf(scanner.next()));
                     } else
                     {
@@ -155,9 +147,15 @@ public class ID3
                 }
             }
             br.close();
-        } catch (IOException e1)
+        } catch (FileNotFoundException fnfe)
         {
-            e1.printStackTrace();
+            System.err.println("<!>Data file not found in current directory(not include sub directories)");
+            System.exit(-1);
+        } catch (Exception e)
+        {
+            //System.err.println("<!>Data file (" + fileName + ".arff" + ") read failed.");
+            e.printStackTrace();
+            System.exit(-1);
         }
     }
 
@@ -388,7 +386,7 @@ public class ID3
     {
         try
         {
-            File file = new File(filename);
+            File file = new File(("./data/" + filename));
             if (!file.exists())
                 file.createNewFile();
             FileWriter fw = new FileWriter(file);
@@ -397,7 +395,7 @@ public class ID3
             output.setEscapeText(false);
             output.write(xmldoc);
             output.close();
-            System.out.println(">>>The decision tree has been saved in " + filename);
+            System.out.println(">>>The decision tree has been saved in \"" + filename + "\"");
         } catch (IOException e)
         {
             System.out.println(e.getMessage());

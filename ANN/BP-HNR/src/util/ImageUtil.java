@@ -261,6 +261,7 @@ public class ImageUtil
                     }
                 }
             }
+            //System.out.println("============================");
             clipp.print(clipp.value + 1, "");
             clipp.value += 1;
         }
@@ -305,6 +306,23 @@ public class ImageUtil
             //System.out.println();
         }
         return 1.0 * count / (scale * scale);
+    }
+
+    public void printDataList(List<DataNode> dataNodeList)
+    {
+        for (DataNode node : dataNodeList)
+        {
+            for (int i = 0; i < 49; i++)
+            {
+                String num = node.getAttrList().get(i).toString();
+                num = String.format("%-10s", num);
+                System.out.print(num);
+                if (((i+1) % 7 == 0) && i > 0)
+                    System.out.println();
+            }
+            System.out.println("====================");
+        }
+
     }
 
     public static void main(String[] args)

@@ -12,6 +12,7 @@ import java.util.Scanner;
 
 public class MainClass
 {
+
     public static void main(String[] args) throws Exception
     {
         List<DataNode> trainList = new LinkedList<>();
@@ -32,6 +33,8 @@ public class MainClass
             for (DataNode dataNode : imageUtil.getDataNodes_test().get(i))
                 testList.add(dataNode);
         }
+        //imageUtil.printDataList(trainList);
+        //imageUtil.printDataList(testList);
         //set attributes of BP training
         Scanner scanner = new Scanner(System.in);
         System.out.print(">>>Training rate:\n  >");

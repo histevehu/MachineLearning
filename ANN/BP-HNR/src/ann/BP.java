@@ -210,14 +210,14 @@ public class BP
         // Record and return the index of the node whose forward output value is closest to 1 in the output layer
         for (int i = 0; i < mOutputCount; i++)
         {
-            System.out.println(mOutputNodes.get(i).getForwardOutputValue());
+            //System.out.println(mOutputNodes.get(i).getForwardOutputValue());
             if ((1 - mOutputNodes.get(i).getForwardOutputValue()) < result)
             {
                 result = 1 - mOutputNodes.get(i).getForwardOutputValue();
                 nodeIndex = i;
             }
         }
-        System.out.println();
+        //System.out.println();
         return nodeIndex;
     }
 }

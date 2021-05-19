@@ -6,6 +6,7 @@ import util.ImageUtil;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
@@ -33,8 +34,7 @@ public class MainClass
             for (DataNode dataNode : imageUtil.getDataNodes_test().get(i))
                 testList.add(dataNode);
         }
-        //imageUtil.printDataList(trainList);
-        //imageUtil.printDataList(testList);
+        Collections.shuffle(trainList);
         //set attributes of BP training
         Scanner scanner = new Scanner(System.in);
         System.out.print(">>>Training rate:\n  >");
@@ -66,15 +66,10 @@ public class MainClass
                 output.write("×  ");
             }
             output.flush();
-            /*List<Double> attrs = dataNode.getAttrList();
-            for (double attr : attrs)
-            {
-                output.write(attr + ",");
-                output.flush();
-            }*/
             output.write(cateIndex + "  ||  " + dataNode.getCategory() + "\n");
             output.flush();
         }
+
         String outputContent = "===================="
                 + "\nTest result output file: " + outputfile
                 + "\n--------------------"
@@ -89,5 +84,4 @@ public class MainClass
         output.close();
         System.out.println(outputContent);
     }
-
 }

@@ -20,6 +20,21 @@ public class BP
 
     private List<DataNode> trainNodes;
 
+    public int getmInputCount()
+    {
+        return mInputCount;
+    }
+
+    public int getmHiddenCount()
+    {
+        return mHiddenCount;
+    }
+
+    public int getmOutputCount()
+    {
+        return mOutputCount;
+    }
+
     public void setTrainNodes(List<DataNode> trainNodes)
     {
         this.trainNodes = trainNodes;
@@ -62,21 +77,6 @@ public class BP
         mHiddenOutputWeight = new double[mHiddenCount][mOutputCount];
     }
 
-    public int getmInputCount()
-    {
-        return mInputCount;
-    }
-
-    public int getmHiddenCount()
-    {
-        return mHiddenCount;
-    }
-
-    public int getmOutputCount()
-    {
-        return mOutputCount;
-    }
-
     /**
      * Update the weights
      * the gradient of each weight is equal to the output value of the previous layer node connected to it multiply the value of the back propagation of the next layer connected to it
@@ -86,10 +86,9 @@ public class BP
         // Update the weight matrix from the input layer to the hidden layer
         for (int i = 0; i < mInputCount; i++)
             for (int j = 0; j < mHiddenCount; j++)
-            {
-                //mInputHiddenWeight[i][j] -= eta * mInputNodes.get(i).getForwardOutputValue() * mHiddenNodes.get(j).getBackwardOutputValue();
-                mInputHiddenWeight[i][j] += eta * mInputNodes.get(i).getBackwardInputValue() * mInputNodes.get(i).getBackwardOutputValue() * mInputNodes.get(i).getForwardInputValue();
-            }
+                mInputHiddenWeight[i][j] -= eta
+                        * mInputNodes.get(i).getForwardOutputValue()
+                        * mHiddenNodes.get(j).getBackwardOutputValue();
         // Update the weight matrix from the hidden layer to the output layer
         for (int i = 0; i < mHiddenCount; i++)
             for (int j = 0; j < mOutputCount; j++)
@@ -209,15 +208,11 @@ public class BP
         int nodeIndex = 0;
         // Record and return the index of the node whose forward output value is closest to 1 in the output layer
         for (int i = 0; i < mOutputCount; i++)
-        {
-            //System.out.println(mOutputNodes.get(i).getForwardOutputValue());
             if ((1 - mOutputNodes.get(i).getForwardOutputValue()) < result)
             {
                 result = 1 - mOutputNodes.get(i).getForwardOutputValue();
                 nodeIndex = i;
             }
-        }
-        //System.out.println();
         return nodeIndex;
     }
 }

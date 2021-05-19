@@ -47,8 +47,7 @@ public class NetworkNode
                 return in;
             case TYPE_HIDDEN:
             case TYPE_OUTPUT:
-                return logS(in);
-                //return tanhS(in);
+                return tanhS(in);
         }
         return 0;
     }
@@ -92,8 +91,7 @@ public class NetworkNode
                 return in;
             case TYPE_HIDDEN:
             case TYPE_OUTPUT:
-                return logSDerivative(in);
-                //return tanhSDerivative(in);
+                return tanhSDerivative(in);
         }
         return 0;
     }

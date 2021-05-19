@@ -20,6 +20,21 @@ public class BP
 
     private List<DataNode> trainNodes;
 
+    public int getmInputCount()
+    {
+        return mInputCount;
+    }
+
+    public int getmHiddenCount()
+    {
+        return mHiddenCount;
+    }
+
+    public int getmOutputCount()
+    {
+        return mOutputCount;
+    }
+
     public void setTrainNodes(List<DataNode> trainNodes)
     {
         this.trainNodes = trainNodes;
@@ -71,10 +86,9 @@ public class BP
         // Update the weight matrix from the input layer to the hidden layer
         for (int i = 0; i < mInputCount; i++)
             for (int j = 0; j < mHiddenCount; j++)
-            {
-                //mInputHiddenWeight[i][j] -= eta * mInputNodes.get(i).getForwardOutputValue() * mHiddenNodes.get(j).getBackwardOutputValue();
-                mInputHiddenWeight[i][j] += eta * mInputNodes.get(i).getBackwardInputValue() * mInputNodes.get(i).getBackwardOutputValue() * mInputNodes.get(i).getForwardInputValue();
-            }
+                mInputHiddenWeight[i][j] -= eta
+                        * mInputNodes.get(i).getForwardOutputValue()
+                        * mHiddenNodes.get(j).getBackwardOutputValue();
         // Update the weight matrix from the hidden layer to the output layer
         for (int i = 0; i < mHiddenCount; i++)
             for (int j = 0; j < mOutputCount; j++)

@@ -1,6 +1,9 @@
 package util;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,7 +12,6 @@ import ann.DataNode;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 
-import static org.opencv.highgui.HighGui.waitKey;
 import static org.opencv.imgcodecs.Imgcodecs.imread;
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
 import static org.opencv.imgproc.Imgproc.*;
@@ -107,6 +109,12 @@ public class ImageUtil
         return instance;
     }
 
+    /**
+     * @param w_uTrain width of single train image
+     * @param h_uTrain height of single train image
+     * @param w_uTest  width of single test image
+     * @param h_uTest  height of single test image
+     */
     public ImageUtil(int w_uTrain, int h_uTrain, int w_uTest, int h_uTest)
     {
         this.w_uTrain = w_uTrain;
@@ -124,7 +132,7 @@ public class ImageUtil
             dataNodes_train.add(new LinkedList<DataNode>());
             dataNodes_test.add(new LinkedList<DataNode>());
         }
-        // 加载动态库
+        // load opencv dll
         path_dll_opencv = ClassLoader.getSystemResource("lib/OpenCV/opencv_java452.dll");
         System.load(path_dll_opencv.getPath());
         path_data = ClassLoader.getSystemResource("data").getPath().substring(1) + "/";
@@ -141,11 +149,14 @@ public class ImageUtil
         }
     }
 
+    /**
+     * read training and test images and convert them to gray scale images
+     */
     public void initial()
     {
         System.out.println("</>Reading train images:");
         clipp = new CLIProgressPrinter(10);
-        // 读取训练图像
+        // read train original images
         for (int i = 0; i <= 9; i++)
         {
             Mat image = imread(path_ori_train + "train" + i + ".jpg");
@@ -163,7 +174,7 @@ public class ImageUtil
             clipp.print(clipp.value + 1);
             clipp.value += 1;
         }
-        // 读取测试图像
+        // read test original images
         clipp.reset();
         System.out.println("</>Reading test images:");
         for (int i = 0; i <= 9; i++)
@@ -184,7 +195,7 @@ public class ImageUtil
             clipp.value += 1;
         }
 
-        // 转灰度图像
+        // convert to gray scale images
         clipp.reset(20);
         System.out.println("</>Converting to gray scale images");
         for (int i = 0; i <= 9; i++)
@@ -200,9 +211,9 @@ public class ImageUtil
             clipp.print(clipp.value + 2);
             clipp.value += 2;
         }
-
-        // 二值化图像
-        clipp.reset(20);
+        clipp.reset();
+        // convert to binary images
+        /*clipp.reset(20);
         System.out.println("</>Converting to binary images");
         for (int i = 0; i <= 9; i++)
         {
@@ -216,10 +227,20 @@ public class ImageUtil
             imwrite(path_test + i + "-grey-bin.jpg", binImgTest);
             clipp.print(clipp.value + 2);
             clipp.value += 2;
-        }
-        clipp.reset();
+        }*/
     }
 
+
+    /**
+     * Read processed original images,cut them to single image and fetch info.
+     *
+     * @param dataCate  category of input data,TRAIN or TEST
+     * @param im_array  input mats of images
+     * @param data      list stores the info fetched from images
+     * @param wPixcel   width of single image
+     * @param hPixcel   height of single image
+     * @param saveUImgs whether to save the cut single image
+     */
     public void fetchImgsInfo(dataCate dataCate, Mat[] im_array, List<List<DataNode>> data, int wPixcel, int hPixcel, boolean saveUImgs)
     {
         clipp.reset(im_array.length);
@@ -235,25 +256,13 @@ public class ImageUtil
                     {
                         if (saveUImgs)
                             imwrite(((dataCate == ImageUtil.dataCate.TRAIN) ? path_train : path_test) + i + "/" + j + ".jpg", cutImage);
-                        /*for (int e = 0; e < cutImage.rows(); e++)
-                        {
-                            for (int t = 0; t < cutImage.cols(); t++)
-                            {
-                                System.out.print((cutImage.get(e, t)[0] == 255 ? 1 : 0) + "  ");
-                            }
-                            System.out.println();
-                        }*/
                         DataNode dataNode = new DataNode();
-                        for (int r = 0; r < cutImage.rows(); r += 4)
+                        for (int r = 0; r < cutImage.rows(); r++)
                         {
-                            for (int c = 0; c < cutImage.cols(); c += 4)
+                            for (int c = 0; c < cutImage.cols(); c++)
                             {
-                                //dataNode.addAttr((cutImage.get(r, c)[0] == 255) ? 1 : 0);
-                                double cr = calcContentRatio(cutImage, r, c, 4);
-                                //System.out.println(cr + "     ");
-                                dataNode.addAttr(cr);
+                                dataNode.addAttr(cutImage.get(r, c)[0] / 255.0);
                             }
-                            //System.out.println();
                         }
                         dataNode.setCategory(i);
                         data.get(i).add(dataNode);
@@ -261,7 +270,6 @@ public class ImageUtil
                     }
                 }
             }
-            //System.out.println("============================");
             clipp.print(clipp.value + 1, "");
             clipp.value += 1;
         }
@@ -277,6 +285,9 @@ public class ImageUtil
         return cutImage;
     }
 
+    /**
+     * Judege if the single image has character.
+     */
     public boolean hasContent(Mat img)
     {
         double flag = img.get(0, 0)[0];
@@ -306,23 +317,6 @@ public class ImageUtil
             //System.out.println();
         }
         return 1.0 * count / (scale * scale);
-    }
-
-    public void printDataList(List<DataNode> dataNodeList)
-    {
-        for (DataNode node : dataNodeList)
-        {
-            for (int i = 0; i < 49; i++)
-            {
-                String num = node.getAttrList().get(i).toString();
-                num = String.format("%-10s", num);
-                System.out.print(num);
-                if (((i+1) % 7 == 0) && i > 0)
-                    System.out.println();
-            }
-            System.out.println("====================");
-        }
-
     }
 
     public static void main(String[] args)
